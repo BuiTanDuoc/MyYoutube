@@ -7,8 +7,10 @@ public class UserDto
     public Guid Id { get; set; }
     public string UserName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public bool EmailConfirmed { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string? Bio { get; set; }
+    /// <summary>Relative URL such as /media/avatars/xxx.webp (prefix it with the API base URL).</summary>
     public string? AvatarUrl { get; set; }
     public List<string> Roles { get; set; } = [];
     public DateTime CreatedAt { get; set; }
@@ -45,9 +47,6 @@ public class UpdateProfileRequest
 
     [MaxLength(1000)]
     public string? Bio { get; set; }
-
-    [MaxLength(500), Url]
-    public string? AvatarUrl { get; set; }
 }
 
 public class ChangePasswordRequest

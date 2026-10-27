@@ -43,3 +43,36 @@ public class AuthResponse
     public DateTime RefreshTokenExpiresAt { get; set; }
     public UserDto User { get; set; } = null!;
 }
+
+public class ConfirmEmailRequest
+{
+    [Required]
+    public string UserId { get; set; } = string.Empty;
+
+    [Required]
+    public string Token { get; set; } = string.Empty;
+}
+
+public class ResendConfirmationRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ForgotPasswordRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+}
+
+public class ResetPasswordRequest
+{
+    [Required, EmailAddress]
+    public string Email { get; set; } = string.Empty;
+
+    [Required]
+    public string Token { get; set; } = string.Empty;
+
+    [Required, MinLength(8), MaxLength(100)]
+    public string NewPassword { get; set; } = string.Empty;
+}

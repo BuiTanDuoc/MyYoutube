@@ -1,9 +1,14 @@
+using System.Text;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using MiniTube.Application.Auth;
 using MiniTube.Application.Common;
 using MiniTube.Domain.Constants;
 using MiniTube.Domain.Entities;
+using MiniTube.Infrastructure.Options;
 using MiniTube.Infrastructure.Persistence;
 
 namespace MiniTube.Infrastructure.Services;
@@ -13,15 +18,29 @@ public class AuthService : IAuthService
     private readonly UserManager<ApplicationUser> _users;
     private readonly AppDbContext _db;
     private readonly ITokenService _tokens;
+    private readonly IAppEmailSender _email;
+    private readonly FrontendOptions _frontend;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(UserManager<ApplicationUser> users, AppDbContext db, ITokenService tokens)
+    public AuthService(
+        UserManager<ApplicationUser> users,
+        AppDbContext db,
+        ITokenService tokens,
+        IAppEmailSender email,
+        IOptions<FrontendOptions> frontend,
+        ILogger<AuthService> logger)
     {
         _users = users;
         _db = db;
         _tokens = tokens;
+        _email = email;
+        _frontend = frontend.Value;
+        _logger = logger;
     }
 
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request, string? ip, CancellationToken ct = default)
+    // ---------------- Register / login / refresh / logout ----------------
+
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest request, string? ip, string language, CancellationToken ct = default)
     {
         var user = new ApplicationUser
         {
@@ -33,6 +52,9 @@ public class AuthService : IAuthService
 
         (await _users.CreateAsync(user, request.Password)).ThrowIfFailed("Registration failed");
         (await _users.AddToRoleAsync(user, Roles.User)).ThrowIfFailed();
+
+        // A mail problem must never make registration fail; the user can use "resend".
+        await TrySendConfirmationAsync(user, language, ct);
 
         return await IssueTokensAsync(user, ip, ct);
     }
@@ -49,7 +71,7 @@ public class AuthService : IAuthService
             throw AppException.Unauthorized("Invalid credentials");
 
         if (await _users.IsLockedOutAsync(user))
-            throw AppException.Forbidden("Account is locked. Try again later or contact support.");
+            throw AppException.Forbidden("Account is locked. Try again later or contact support.", "account_locked");
 
         if (!await _users.CheckPasswordAsync(user, request.Password))
         {
@@ -82,12 +104,12 @@ public class AuthService : IAuthService
             throw AppException.Unauthorized("Refresh token expired");
 
         if (await _users.IsLockedOutAsync(existing.User))
-            throw AppException.Forbidden("Account is locked.");
+            throw AppException.Forbidden("Account is locked.", "account_locked");
 
+        // Roles / email_verified are re-read here, so a refresh picks up changes (e.g. just confirmed email).
         var roles = await _users.GetRolesAsync(existing.User);
         var (access, accessExp) = _tokens.CreateAccessToken(existing.User, roles);
 
-        // Rotate
         var newRaw = _tokens.GenerateRefreshToken();
         var newHash = _tokens.Hash(newRaw);
         var newExpiry = _tokens.GetRefreshTokenExpiry();
@@ -129,7 +151,96 @@ public class AuthService : IAuthService
     public Task LogoutAllAsync(Guid userId, string? ip, CancellationToken ct = default) =>
         RevokeAllAsync(userId, ip, ct);
 
-    // ---- helpers ----
+    // ---------------- Email confirmation ----------------
+
+    public async Task ConfirmEmailAsync(string userId, string token, CancellationToken ct = default)
+    {
+        var user = await _users.FindByIdAsync(userId)
+                   ?? throw InvalidLink("invalid_token");
+
+        if (user.EmailConfirmed) return; // idempotent: clicking the link twice is fine
+
+        var result = await _users.ConfirmEmailAsync(user, DecodeToken(token));
+        if (!result.Succeeded) throw InvalidLink("invalid_token");
+    }
+
+    public async Task ResendConfirmationAsync(string email, string language, CancellationToken ct = default)
+    {
+        // Always "succeeds" from the caller's point of view: no account enumeration.
+        var user = await _users.FindByEmailAsync(email.Trim());
+        if (user is null || user.EmailConfirmed) return;
+        await TrySendConfirmationAsync(user, language, ct);
+    }
+
+    // ---------------- Forgot / reset password ----------------
+
+    public async Task ForgotPasswordAsync(string email, string language, CancellationToken ct = default)
+    {
+        var user = await _users.FindByEmailAsync(email.Trim());
+        if (user is null) return; // no account enumeration
+
+        try
+        {
+            var token = EncodeToken(await _users.GeneratePasswordResetTokenAsync(user));
+            var link = $"{FrontendBase}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={token}";
+            var (subject, body) = EmailTemplates.ResetPassword(NormalizeLang(language), user.DisplayName, link);
+            await _email.SendAsync(user.Email!, subject, body, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send password reset email to user {UserId}", user.Id);
+        }
+    }
+
+    public async Task ResetPasswordAsync(ResetPasswordRequest request, string? ip, CancellationToken ct = default)
+    {
+        var user = await _users.FindByEmailAsync(request.Email.Trim())
+                   ?? throw InvalidLink("invalid_token");
+
+        var result = await _users.ResetPasswordAsync(user, DecodeToken(request.Token), request.NewPassword);
+        if (!result.Succeeded)
+        {
+            if (result.Errors.Any(e => e.Code == "InvalidToken")) throw InvalidLink("invalid_token");
+            result.ThrowIfFailed("Could not reset password"); // password policy errors
+        }
+
+        await _users.ResetAccessFailedCountAsync(user);
+        await RevokeAllAsync(user.Id, ip, ct); // every device must log in again
+    }
+
+    // ---------------- helpers ----------------
+
+    private string FrontendBase => _frontend.BaseUrl.TrimEnd('/');
+
+    private static string NormalizeLang(string? lang) =>
+        string.Equals(lang, "en", StringComparison.OrdinalIgnoreCase) ? "en" : "vi";
+
+    private static AppException InvalidLink(string code) =>
+        AppException.BadRequest("The link is invalid or has expired.", code: code);
+
+    // Identity tokens contain '+', '/', '=' -> make them URL-safe
+    private static string EncodeToken(string token) => WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(token));
+
+    private static string DecodeToken(string encoded)
+    {
+        try { return Encoding.UTF8.GetString(WebEncoders.Base64UrlDecode(encoded)); }
+        catch (FormatException) { throw InvalidLink("invalid_token"); }
+    }
+
+    private async Task TrySendConfirmationAsync(ApplicationUser user, string language, CancellationToken ct)
+    {
+        try
+        {
+            var token = EncodeToken(await _users.GenerateEmailConfirmationTokenAsync(user));
+            var link = $"{FrontendBase}/confirm-email?userId={user.Id}&token={token}";
+            var (subject, body) = EmailTemplates.ConfirmEmail(NormalizeLang(language), user.DisplayName, link);
+            await _email.SendAsync(user.Email!, subject, body, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to send confirmation email to user {UserId}", user.Id);
+        }
+    }
 
     private async Task<AuthResponse> IssueTokensAsync(ApplicationUser user, string? ip, CancellationToken ct)
     {

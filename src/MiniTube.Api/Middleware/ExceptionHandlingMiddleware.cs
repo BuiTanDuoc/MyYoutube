@@ -26,7 +26,14 @@ public class ExceptionHandlingMiddleware
                 ? new ValidationProblemDetails(ex.Errors) { Status = ex.StatusCode, Title = ex.Message }
                 : new ProblemDetails { Status = ex.StatusCode, Title = ex.Message };
 
+            if (ex.Code is not null) problem.Extensions["code"] = ex.Code;
+
             await WriteAsync(context, problem);
+        }
+        catch (BadHttpRequestException ex)
+        {
+            // e.g. 413 when an upload exceeds [RequestSizeLimit]
+            await WriteAsync(context, new ProblemDetails { Status = ex.StatusCode, Title = ex.Message });
         }
         catch (OperationCanceledException) when (context.RequestAborted.IsCancellationRequested)
         {

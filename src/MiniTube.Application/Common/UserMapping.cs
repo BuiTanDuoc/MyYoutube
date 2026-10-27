@@ -10,6 +10,7 @@ public static class UserMapping
         Id = u.Id,
         UserName = u.UserName ?? string.Empty,
         Email = u.Email ?? string.Empty,
+        EmailConfirmed = u.EmailConfirmed,
         DisplayName = u.DisplayName,
         Bio = u.Bio,
         AvatarUrl = u.AvatarUrl,

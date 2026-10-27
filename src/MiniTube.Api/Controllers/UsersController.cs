@@ -23,6 +23,22 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<UserDto>> UpdateMe(UpdateProfileRequest request, CancellationToken ct) =>
         Ok(await _users.UpdateProfileAsync(User.GetUserId(), request, ct));
 
+    /// <summary>multipart/form-data with a "file" field. JPEG/PNG/WebP, max 2 MB; stored as 256x256 WebP.</summary>
+    [Authorize]
+    [HttpPut("me/avatar")]
+    [RequestSizeLimit(3 * 1024 * 1024)]
+    [Consumes("multipart/form-data")]
+    public async Task<ActionResult<UserDto>> SetAvatar(IFormFile file, CancellationToken ct)
+    {
+        await using var stream = file.OpenReadStream();
+        return Ok(await _users.SetAvatarAsync(User.GetUserId(), stream, file.Length, ct));
+    }
+
+    [Authorize]
+    [HttpDelete("me/avatar")]
+    public async Task<ActionResult<UserDto>> RemoveAvatar(CancellationToken ct) =>
+        Ok(await _users.RemoveAvatarAsync(User.GetUserId(), ct));
+
     [Authorize]
     [HttpPost("me/change-password")]
     public async Task<IActionResult> ChangePassword(ChangePasswordRequest request, CancellationToken ct)

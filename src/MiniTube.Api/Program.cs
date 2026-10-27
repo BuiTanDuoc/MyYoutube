@@ -2,9 +2,12 @@ using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using MiniTube.Api.Middleware;
+using MiniTube.Domain.Constants;
 using MiniTube.Infrastructure;
 using MiniTube.Infrastructure.Options;
 using MiniTube.Infrastructure.Persistence;
@@ -37,7 +40,14 @@ builder.Services
             RoleClaimType = "role"
         };
     });
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(o =>
+{
+    // Use [Authorize(Policy = Policies.VerifiedEmail)] on endpoints such as video upload.
+    // The claim is read from the access token, so after confirming the email the client must call /auth/refresh.
+    o.AddPolicy(Policies.VerifiedEmail, p => p
+        .RequireAuthenticatedUser()
+        .RequireClaim("email_verified", "true"));
+});
 
 // ---- CORS (React dev server) ----
 var origins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? [];
@@ -56,6 +66,16 @@ builder.Services.AddRateLimiter(o =>
         {
             PermitLimit = 20,
             Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
+
+    // Stricter limit for endpoints that send emails
+    o.AddPolicy("email", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 5,
+            Window = TimeSpan.FromMinutes(10),
             QueueLimit = 0
         }));
 });
@@ -99,6 +119,23 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+// Serve uploaded files (avatars now, thumbnails/videos later) under /media
+var storage = app.Services.GetRequiredService<IOptions<StorageOptions>>().Value;
+var storageRoot = StorageOptions.ResolveRoot(storage.RootPath, app.Environment.ContentRootPath);
+Directory.CreateDirectory(storageRoot);
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(storageRoot),
+    RequestPath = "/" + storage.RequestPath.Trim('/'),
+    OnPrepareResponse = ctx =>
+    {
+        // File names are unique per upload, so they can be cached "forever"
+        ctx.Context.Response.Headers.CacheControl = "public,max-age=31536000,immutable";
+        ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    }
+});
+
 app.UseCors("Frontend");
 app.UseRateLimiter();
 app.UseAuthentication();

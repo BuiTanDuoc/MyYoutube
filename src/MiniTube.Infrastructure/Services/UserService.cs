@@ -5,6 +5,7 @@ using MiniTube.Application.Users;
 using MiniTube.Domain.Constants;
 using MiniTube.Domain.Entities;
 using MiniTube.Infrastructure.Persistence;
+using MiniTube.Infrastructure.Storage;
 
 namespace MiniTube.Infrastructure.Services;
 
@@ -12,11 +13,15 @@ public class UserService : IUserService
 {
     private readonly UserManager<ApplicationUser> _users;
     private readonly AppDbContext _db;
+    private readonly IFileStorage _storage;
 
-    public UserService(UserManager<ApplicationUser> users, AppDbContext db)
+    private const long MaxAvatarBytes = 2 * 1024 * 1024; // 2 MB
+
+    public UserService(UserManager<ApplicationUser> users, AppDbContext db, IFileStorage storage)
     {
         _users = users;
         _db = db;
+        _storage = storage;
     }
 
     public async Task<UserDto> GetMeAsync(Guid userId, CancellationToken ct = default)
@@ -38,10 +43,60 @@ public class UserService : IUserService
 
         user.DisplayName = request.DisplayName.Trim();
         user.Bio = string.IsNullOrWhiteSpace(request.Bio) ? null : request.Bio.Trim();
-        user.AvatarUrl = string.IsNullOrWhiteSpace(request.AvatarUrl) ? null : request.AvatarUrl.Trim();
         user.UpdatedAt = DateTime.UtcNow;
 
         (await _users.UpdateAsync(user)).ThrowIfFailed();
+        return user.ToDto(await _users.GetRolesAsync(user));
+    }
+
+    public async Task<UserDto> SetAvatarAsync(Guid userId, Stream content, long length, CancellationToken ct = default)
+    {
+        if (length <= 0)
+            throw AppException.BadRequest("The file is empty.");
+        if (length > MaxAvatarBytes)
+            throw AppException.BadRequest("Avatar must be 2 MB or smaller.");
+
+        var user = await FindOrThrowAsync(userId);
+
+        using var buffer = new MemoryStream();
+        await content.CopyToAsync(buffer, ct);
+        buffer.Position = 0;
+
+        using var webp = await AvatarProcessor.ProcessAsync(buffer, ct);
+
+        var fileName = $"{userId:N}-{Guid.NewGuid():N}.webp";
+        var url = await _storage.SaveAsync("avatars", fileName, webp, ct);
+
+        var oldUrl = user.AvatarUrl;
+        user.AvatarUrl = url;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        var result = await _users.UpdateAsync(user);
+        if (!result.Succeeded)
+        {
+            await _storage.DeleteAsync(url, ct); // don't leave an orphan file
+            result.ThrowIfFailed();
+        }
+
+        if (!string.IsNullOrEmpty(oldUrl))
+            await _storage.DeleteAsync(oldUrl, ct);
+
+        return user.ToDto(await _users.GetRolesAsync(user));
+    }
+
+    public async Task<UserDto> RemoveAvatarAsync(Guid userId, CancellationToken ct = default)
+    {
+        var user = await FindOrThrowAsync(userId);
+
+        if (!string.IsNullOrEmpty(user.AvatarUrl))
+        {
+            var oldUrl = user.AvatarUrl;
+            user.AvatarUrl = null;
+            user.UpdatedAt = DateTime.UtcNow;
+            (await _users.UpdateAsync(user)).ThrowIfFailed();
+            await _storage.DeleteAsync(oldUrl, ct);
+        }
+
         return user.ToDto(await _users.GetRolesAsync(user));
     }
 

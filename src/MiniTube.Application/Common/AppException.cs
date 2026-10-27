@@ -5,15 +5,19 @@ public class AppException : Exception
     public int StatusCode { get; }
     public IDictionary<string, string[]>? Errors { get; }
 
-    public AppException(int statusCode, string message, IDictionary<string, string[]>? errors = null)
+    /// <summary>Machine-readable code the frontend can switch on (e.g. "invalid_token").</summary>
+    public string? Code { get; }
+
+    public AppException(int statusCode, string message, IDictionary<string, string[]>? errors = null, string? code = null)
         : base(message)
     {
         StatusCode = statusCode;
         Errors = errors;
+        Code = code;
     }
 
-    public static AppException BadRequest(string message, IDictionary<string, string[]>? errors = null) => new(400, message, errors);
-    public static AppException Unauthorized(string message = "Unauthorized") => new(401, message);
-    public static AppException Forbidden(string message = "Forbidden") => new(403, message);
+    public static AppException BadRequest(string message, IDictionary<string, string[]>? errors = null, string? code = null) => new(400, message, errors, code);
+    public static AppException Unauthorized(string message = "Unauthorized", string? code = null) => new(401, message, null, code);
+    public static AppException Forbidden(string message = "Forbidden", string? code = null) => new(403, message, null, code);
     public static AppException NotFound(string message = "Not found") => new(404, message);
 }

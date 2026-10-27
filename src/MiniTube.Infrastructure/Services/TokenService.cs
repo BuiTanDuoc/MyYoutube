@@ -26,7 +26,8 @@ public class TokenService : ITokenService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
             new(JwtRegisteredClaimNames.Email, user.Email ?? string.Empty),
             new(JwtRegisteredClaimNames.UniqueName, user.UserName ?? string.Empty),
-            new("display_name", user.DisplayName)
+            new("display_name", user.DisplayName),
+            new("email_verified", user.EmailConfirmed ? "true" : "false")
         };
         claims.AddRange(roles.Select(r => new Claim("role", r)));
 

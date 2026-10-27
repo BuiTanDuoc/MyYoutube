@@ -1,13 +1,16 @@
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MiniTube.Application.Auth;
+using MiniTube.Application.Common;
 using MiniTube.Application.Users;
 using MiniTube.Domain.Entities;
 using MiniTube.Infrastructure.Options;
 using MiniTube.Infrastructure.Persistence;
 using MiniTube.Infrastructure.Services;
+using MiniTube.Infrastructure.Storage;
 
 namespace MiniTube.Infrastructure;
 
@@ -23,6 +26,16 @@ public static class DependencyInjection
             .Bind(config.GetSection(JwtOptions.SectionName))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+
+        services.Configure<EmailOptions>(config.GetSection("Email"));
+        services.Configure<FrontendOptions>(config.GetSection("Frontend"));
+        services.Configure<StorageOptions>(config.GetSection("Storage"));
+
+        // Email-confirmation / reset-password tokens are protected with these keys.
+        // Persisting them in the DB keeps old links valid across restarts and multiple instances.
+        services.AddDataProtection()
+            .SetApplicationName("MiniTube")
+            .PersistKeysToDbContext<AppDbContext>();
 
         services.AddIdentityCore<ApplicationUser>(o =>
             {
@@ -44,9 +57,22 @@ public static class DependencyInjection
             .AddEntityFrameworkStores<AppDbContext>()
             .AddDefaultTokenProviders();
 
+        // Confirmation + reset links live for 2 hours
+        services.Configure<DataProtectionTokenProviderOptions>(o => o.TokenLifespan = TimeSpan.FromHours(2));
+
+        // Real SMTP when Email:Host is set, otherwise log the email (handy in dev)
+        if (!string.IsNullOrWhiteSpace(config["Email:Host"]))
+            services.AddScoped<IAppEmailSender, SmtpEmailSender>();
+        else
+            services.AddScoped<IAppEmailSender, LogEmailSender>();
+
+        services.AddSingleton<IFileStorage, LocalFileStorage>();
+
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
+
+        services.AddHostedService<RefreshTokenCleanupService>();
 
         return services;
     }

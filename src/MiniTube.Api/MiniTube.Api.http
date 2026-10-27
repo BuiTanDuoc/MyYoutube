@@ -25,3 +25,45 @@ Authorization: Bearer PASTE_ACCESS_TOKEN
 ### Admin: list users
 GET {{host}}/api/admin/users?page=1&pageSize=20&search=jo
 Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN
+
+### Confirm email (userId + token come from the link in the email / console log)
+POST {{host}}/api/auth/confirm-email
+Content-Type: application/json
+
+{ "userId": "PASTE_USER_ID", "token": "PASTE_TOKEN" }
+
+### Resend confirmation
+POST {{host}}/api/auth/resend-confirmation
+Content-Type: application/json
+Accept-Language: en
+
+{ "email": "john@example.com" }
+
+### Forgot password
+POST {{host}}/api/auth/forgot-password
+Content-Type: application/json
+Accept-Language: vi
+
+{ "email": "john@example.com" }
+
+### Reset password
+POST {{host}}/api/auth/reset-password
+Content-Type: application/json
+
+{ "email": "john@example.com", "token": "PASTE_TOKEN", "newPassword": "NewPassw0rd!" }
+
+### Upload avatar
+PUT {{host}}/api/users/me/avatar
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: multipart/form-data; boundary=X
+
+--X
+Content-Disposition: form-data; name="file"; filename="me.png"
+Content-Type: image/png
+
+< ./me.png
+--X--
+
+### Remove avatar
+DELETE {{host}}/api/users/me/avatar
+Authorization: Bearer PASTE_ACCESS_TOKEN
