@@ -1,0 +1,27 @@
+@host = https://localhost:7100
+
+### Register
+POST {{host}}/api/auth/register
+Content-Type: application/json
+
+{ "email": "john@example.com", "userName": "john", "password": "Passw0rd!", "displayName": "John" }
+
+### Login (email or username)
+POST {{host}}/api/auth/login
+Content-Type: application/json
+
+{ "identifier": "john", "password": "Passw0rd!" }
+
+### Refresh
+POST {{host}}/api/auth/refresh
+Content-Type: application/json
+
+{ "refreshToken": "PASTE_REFRESH_TOKEN" }
+
+### Me
+GET {{host}}/api/users/me
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Admin: list users
+GET {{host}}/api/admin/users?page=1&pageSize=20&search=jo
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN
