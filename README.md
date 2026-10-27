@@ -41,8 +41,8 @@ dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
 cd ../..
 dotnet tool install --global dotnet-ef   # once
 dotnet ef migrations add InitialIdentity -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
-# Already applied earlier migrations? Add another one instead (this step: reactions, history, views):
-#   dotnet ef migrations add AddPlayback -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
+# Already applied earlier migrations? Add another one instead (this step: playlists):
+#   dotnet ef migrations add AddPlaylists -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
 
 dotnet run --project src/MiniTube.Api    # Development: auto-migrates + seeds roles & admin
 ```
@@ -107,6 +107,17 @@ Rules:
 - On page leave use `fetch(url, { method: 'PUT', keepalive: true, headers: { Authorization } })`: `navigator.sendBeacon` cannot send an Authorization header.
 - Counters (`viewCount`, `likeCount`) are denormalised on `Videos` and updated with atomic SQL increments.
 
+### Playlists
+
+- Visibility works like videos: **Private** (owner), **Unlisted** (anyone with the link), **Public** (listed on `GET /api/playlists`, and only if it has at least one video visitors can see).
+- Every user has one built-in **Watch later** playlist (`kind: "WatchLater"`, always private, cannot be renamed/deleted). `GET /api/playlists/watch-later` returns it and creates it on first use. Localise its title in the UI by `kind`.
+- A video appears **once** per playlist (adding it again is a no-op that returns the existing item). Limits: 100 custom playlists per user, 5000 videos per playlist.
+- You can only add videos you may watch (Ready, and not someone else's private video).
+- Viewers only see items whose video they may watch: if a video later becomes private/unavailable it silently disappears for others, and `itemCount` / `thumbnailUrl` are computed per viewer.
+- **"Save to playlist" dialog:** `GET /api/playlists/mine?videoId={id}` returns every playlist with `containsVideo` true/false. Toggle with `POST /api/playlists/{id}/items` or `DELETE /api/playlists/{id}/videos/{videoId}`.
+- **Reordering (drag and drop):** `PUT /api/playlists/{id}/items/{itemId}/move` with `{ "afterItemId": "<the item it now sits under>" }` (null = top). `position` is only a sort key: increasing but may have gaps, so always sort by it instead of using it as an index.
+- **Playing a playlist:** `GET /api/playlists/{id}/items?pageSize=100` gives the queue; the React watch page keeps `?list={id}` and moves to the next item when a video ends.
+
 ### Try playback
 
 Run the API in Development and open `https://localhost:7100/player-test.html`, paste the video id (and a token for Private videos).
@@ -163,6 +174,17 @@ storage-private/    (never served)               videos/{id}/source/original.mp4
 | GET / DELETE | /api/users/me/history | Bearer |
 | DELETE | /api/users/me/history/{videoId} | Bearer |
 | PUT | /api/users/me/history/settings | Bearer |
+| POST | /api/playlists | Bearer |
+| GET | /api/playlists | – (public playlists; `ownerId`, `page`, `pageSize`) |
+| GET | /api/playlists/mine | Bearer (`videoId` adds `containsVideo`) |
+| GET | /api/playlists/watch-later | Bearer |
+| GET | /api/playlists/{id} | – (private: owner/admin) |
+| GET | /api/playlists/{id}/items | – (private: owner/admin) |
+| PUT / DELETE | /api/playlists/{id} | Bearer (owner; admin may delete) |
+| POST | /api/playlists/{id}/items | Bearer (owner) |
+| DELETE | /api/playlists/{id}/items/{itemId} | Bearer (owner) |
+| DELETE | /api/playlists/{id}/videos/{videoId} | Bearer (owner) |
+| PUT | /api/playlists/{id}/items/{itemId}/move | Bearer (owner) |
 | GET | /api/admin/users | Admin |
 | PUT | /api/admin/users/{id}/lock | Admin |
 | PUT | /api/admin/users/{id}/roles | Admin |

@@ -22,3 +22,9 @@ public enum ReactionType
     Like = 1,
     Dislike = 2
 }
+
+public enum PlaylistKind
+{
+    Custom = 0,
+    WatchLater = 1 // built-in, one per user, always private, cannot be renamed or deleted
+}

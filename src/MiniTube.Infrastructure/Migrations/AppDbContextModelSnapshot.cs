@@ -260,6 +260,84 @@ namespace MiniTube.Infrastructure.Migrations
                     b.ToTable("Users", (string)null);
                 });
 
+            modelBuilder.Entity("MiniTube.Domain.Entities.Playlist", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(5000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Visibility")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Playlists_OwnerId_WatchLater")
+                        .HasFilter("[Kind] = 'WatchLater'");
+
+                    b.HasIndex("OwnerId", "UpdatedAt");
+
+                    b.HasIndex("Visibility", "Kind", "UpdatedAt");
+
+                    b.ToTable("Playlists", (string)null);
+                });
+
+            modelBuilder.Entity("MiniTube.Domain.Entities.PlaylistItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AddedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("PlaylistId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VideoId");
+
+                    b.HasIndex("PlaylistId", "Position");
+
+                    b.HasIndex("PlaylistId", "VideoId")
+                        .IsUnique();
+
+                    b.ToTable("PlaylistItems", (string)null);
+                });
+
             modelBuilder.Entity("MiniTube.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -580,6 +658,36 @@ namespace MiniTube.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("MiniTube.Domain.Entities.Playlist", b =>
+                {
+                    b.HasOne("MiniTube.Domain.Entities.ApplicationUser", "Owner")
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Owner");
+                });
+
+            modelBuilder.Entity("MiniTube.Domain.Entities.PlaylistItem", b =>
+                {
+                    b.HasOne("MiniTube.Domain.Entities.Playlist", "Playlist")
+                        .WithMany("Items")
+                        .HasForeignKey("PlaylistId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MiniTube.Domain.Entities.Video", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Playlist");
+
+                    b.Navigation("Video");
+                });
+
             modelBuilder.Entity("MiniTube.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("MiniTube.Domain.Entities.ApplicationUser", "User")
@@ -661,6 +769,11 @@ namespace MiniTube.Infrastructure.Migrations
             modelBuilder.Entity("MiniTube.Domain.Entities.ApplicationUser", b =>
                 {
                     b.Navigation("RefreshTokens");
+                });
+
+            modelBuilder.Entity("MiniTube.Domain.Entities.Playlist", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("MiniTube.Domain.Entities.Video", b =>

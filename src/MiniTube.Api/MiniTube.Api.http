@@ -145,3 +145,61 @@ Authorization: Bearer PASTE_ACCESS_TOKEN
 Content-Type: application/json
 
 { "paused": true }
+
+### ---- Playlists ----
+### Create
+POST {{host}}/api/playlists
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{ "title": "Favourites", "description": "My picks", "visibility": "Public" }
+
+### My playlists (Watch later first). videoId marks which ones already contain that video.
+GET {{host}}/api/playlists/mine?videoId=PASTE_VIDEO_ID
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Built-in Watch later
+GET {{host}}/api/playlists/watch-later
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Public playlists (optionally ?ownerId=)
+GET {{host}}/api/playlists?page=1&pageSize=20
+
+### Detail + items
+GET {{host}}/api/playlists/PASTE_PLAYLIST_ID
+
+###
+GET {{host}}/api/playlists/PASTE_PLAYLIST_ID/items?page=1&pageSize=50
+
+### Add a video
+POST {{host}}/api/playlists/PASTE_PLAYLIST_ID/items
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{ "videoId": "PASTE_VIDEO_ID" }
+
+### Move an item right after another one (afterItemId null = to the top)
+PUT {{host}}/api/playlists/PASTE_PLAYLIST_ID/items/PASTE_ITEM_ID/move
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{ "afterItemId": null }
+
+### Remove by item id / by video id
+DELETE {{host}}/api/playlists/PASTE_PLAYLIST_ID/items/PASTE_ITEM_ID
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+###
+DELETE {{host}}/api/playlists/PASTE_PLAYLIST_ID/videos/PASTE_VIDEO_ID
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Update / delete the playlist
+PUT {{host}}/api/playlists/PASTE_PLAYLIST_ID
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{ "title": "Renamed", "description": null, "visibility": "Unlisted" }
+
+###
+DELETE {{host}}/api/playlists/PASTE_PLAYLIST_ID
+Authorization: Bearer PASTE_ACCESS_TOKEN

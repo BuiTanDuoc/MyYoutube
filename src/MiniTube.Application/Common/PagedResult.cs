@@ -8,3 +8,9 @@ public class PagedResult<T>
     public int TotalCount { get; init; }
     public int TotalPages => PageSize == 0 ? 0 : (int)Math.Ceiling(TotalCount / (double)PageSize);
 }
+
+public class PagingQuery
+{
+    public int Page { get; set; } = 1;
+    public int PageSize { get; set; } = 20;
+}

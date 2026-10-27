@@ -15,6 +15,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<VideoReaction> VideoReactions => Set<VideoReaction>();
     public DbSet<WatchHistoryEntry> WatchHistory => Set<WatchHistoryEntry>();
     public DbSet<VideoView> VideoViews => Set<VideoView>();
+    public DbSet<Playlist> Playlists => Set<Playlist>();
+    public DbSet<PlaylistItem> PlaylistItems => Set<PlaylistItem>();
 
     /// <summary>Keys that protect email-confirmation / password-reset tokens. Stored in DB so they survive restarts.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -98,6 +100,41 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
             e.HasIndex(x => new { x.VideoId, x.UserId, x.CreatedAt });
             e.HasIndex(x => new { x.VideoId, x.ViewerKey, x.CreatedAt });
             // UserId is deliberately a plain column (no FK): anonymous rows have none
+            e.HasOne(x => x.Video).WithMany().HasForeignKey(x => x.VideoId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<Playlist>(e =>
+        {
+            e.ToTable("Playlists");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).HasMaxLength(150).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(5000);
+            e.Property(x => x.Visibility).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Kind).HasConversion<string>().HasMaxLength(20);
+
+            e.HasIndex(x => new { x.OwnerId, x.UpdatedAt });
+            e.HasIndex(x => new { x.Visibility, x.Kind, x.UpdatedAt });
+
+            // At most ONE "Watch later" playlist per user
+            e.HasIndex(x => x.OwnerId)
+                .IsUnique()
+                .HasFilter("[Kind] = 'WatchLater'")
+                .HasDatabaseName("IX_Playlists_OwnerId_WatchLater");
+
+            e.HasOne(x => x.Owner).WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<PlaylistItem>(e =>
+        {
+            e.ToTable("PlaylistItems");
+            e.HasKey(x => x.Id);
+
+            // Deliberately NOT unique: a move shifts a range of positions in one UPDATE
+            e.HasIndex(x => new { x.PlaylistId, x.Position });
+            e.HasIndex(x => new { x.PlaylistId, x.VideoId }).IsUnique(); // a video appears once per playlist
+            e.HasIndex(x => x.VideoId);
+
+            e.HasOne(x => x.Playlist).WithMany(p => p.Items).HasForeignKey(x => x.PlaylistId).OnDelete(DeleteBehavior.Cascade);
             e.HasOne(x => x.Video).WithMany().HasForeignKey(x => x.VideoId).OnDelete(DeleteBehavior.Cascade);
         });
 
