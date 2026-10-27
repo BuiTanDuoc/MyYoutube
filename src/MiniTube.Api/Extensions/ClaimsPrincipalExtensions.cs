@@ -11,4 +11,8 @@ public static class ClaimsPrincipalExtensions
             ? id
             : throw new UnauthorizedAccessException("Missing or invalid subject claim.");
     }
+
+    /// <summary>Null for anonymous requests (endpoints that work with or without a token).</summary>
+    public static Guid? TryGetUserId(this ClaimsPrincipal user) =>
+        Guid.TryParse(user.FindFirstValue("sub"), out var id) ? id : null;
 }

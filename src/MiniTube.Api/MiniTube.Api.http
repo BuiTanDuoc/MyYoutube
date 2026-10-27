@@ -67,3 +67,40 @@ Content-Type: image/png
 ### Remove avatar
 DELETE {{host}}/api/users/me/avatar
 Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### ---- Videos ----
+### 1) Create metadata (needs a verified email; the seeded admin is verified)
+POST {{host}}/api/videos
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{ "title": "My first video", "description": "Hello", "visibility": "Public" }
+
+### 2) Upload the file as the raw body
+PUT {{host}}/api/videos/PASTE_VIDEO_ID/source?fileName=test.mp4
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/octet-stream
+
+< ./test.mp4
+
+### 3) Poll status (processingProgress is returned to the owner)
+GET {{host}}/api/videos/PASTE_VIDEO_ID
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Public list
+GET {{host}}/api/videos?page=1&pageSize=20
+
+### My videos (all statuses)
+GET {{host}}/api/videos/mine?status=Failed
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Reprocess a failed video
+POST {{host}}/api/videos/PASTE_VIDEO_ID/reprocess
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Delete
+DELETE {{host}}/api/videos/PASTE_VIDEO_ID
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### HLS master playlist
+GET {{host}}/api/stream/PASTE_VIDEO_ID/master.m3u8

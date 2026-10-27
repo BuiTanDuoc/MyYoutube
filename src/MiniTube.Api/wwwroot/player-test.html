@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MiniTube - HLS player test (dev only)</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    label { display: block; margin: .5rem 0; font-size: .9rem; }
+    input { width: 100%; padding: .4rem; box-sizing: border-box; }
+    video { width: 100%; background: #000; margin-top: 1rem; }
+    #info { margin-left: .5rem; color: #555; }
+  </style>
+</head>
+<body>
+  <h2>HLS player test (dev only)</h2>
+  <label>Video id <input id="vid" placeholder="3fa85f64-5717-4562-b3fc-2c963f66afa6"></label>
+  <label>Access token (only needed for Private videos) <input id="tok"></label>
+  <button id="go">Play</button><span id="info"></span>
+  <video id="v" controls playsinline></video>
+
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let hls;
+
+    $('go').onclick = () => {
+      const id = $('vid').value.trim();
+      const token = $('tok').value.trim();
+      const url = `/api/stream/${id}/master.m3u8`;
+      const video = $('v');
+      if (hls) hls.destroy();
+
+      if (window.Hls && Hls.isSupported()) {
+        hls = new Hls({
+          xhrSetup: (xhr) => { if (token) xhr.setRequestHeader('Authorization', 'Bearer ' + token); }
+        });
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+          $('info').textContent = 'Qualities: ' + data.levels.map(l => l.height + 'p').join(', ');
+          video.play().catch(() => {});
+        });
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) $('info').textContent = 'Error: ' + data.details;
+        });
+      } else if (video.canPlayType('application/vnd.apple.mpegurl') && !token) {
+        video.src = url; // Safari plays HLS natively (no custom headers, so public/unlisted only)
+      }
+    };
+  </script>
+</body>
+</html>

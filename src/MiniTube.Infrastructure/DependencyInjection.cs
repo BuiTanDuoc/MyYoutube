@@ -6,11 +6,13 @@ using Microsoft.Extensions.DependencyInjection;
 using MiniTube.Application.Auth;
 using MiniTube.Application.Common;
 using MiniTube.Application.Users;
+using MiniTube.Application.Videos;
 using MiniTube.Domain.Entities;
 using MiniTube.Infrastructure.Options;
 using MiniTube.Infrastructure.Persistence;
 using MiniTube.Infrastructure.Services;
 using MiniTube.Infrastructure.Storage;
+using MiniTube.Infrastructure.Videos;
 
 namespace MiniTube.Infrastructure;
 
@@ -30,6 +32,7 @@ public static class DependencyInjection
         services.Configure<EmailOptions>(config.GetSection("Email"));
         services.Configure<FrontendOptions>(config.GetSection("Frontend"));
         services.Configure<StorageOptions>(config.GetSection("Storage"));
+        services.Configure<VideoOptions>(config.GetSection("Video"));
 
         // Email-confirmation / reset-password tokens are protected with these keys.
         // Persisting them in the DB keeps old links valid across restarts and multiple instances.
@@ -71,6 +74,16 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IUserService, UserService>();
+
+        // ---- Videos ----
+        services.AddSingleton<StoragePaths>();
+        services.AddSingleton<FfmpegTools>();
+        services.AddSingleton<VideoProcessingQueue>();
+        services.AddSingleton<IVideoProcessingQueue>(sp => sp.GetRequiredService<VideoProcessingQueue>());
+        services.AddScoped<IVideoProcessor, VideoProcessor>();
+        services.AddScoped<IVideoService, VideoService>();
+        services.AddScoped<IVideoStreamService, VideoStreamService>();
+        services.AddHostedService<VideoProcessingWorker>();
 
         services.AddHostedService<RefreshTokenCleanupService>();
 

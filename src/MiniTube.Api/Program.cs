@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -15,7 +16,9 @@ using MiniTube.Infrastructure.Persistence;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddInfrastructure(builder.Configuration);
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    // Enums travel as strings ("Public", "Ready"...) instead of numbers
+    .AddJsonOptions(o => o.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
 // ---- JWT bearer ----
 var jwt = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
@@ -135,6 +138,9 @@ app.UseStaticFiles(new StaticFileOptions
         ctx.Context.Response.Headers["X-Content-Type-Options"] = "nosniff";
     }
 });
+
+if (app.Environment.IsDevelopment())
+    app.UseStaticFiles(); // wwwroot/player-test.html (dev-only HLS test page)
 
 app.UseCors("Frontend");
 app.UseRateLimiter();

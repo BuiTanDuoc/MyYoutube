@@ -10,6 +10,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<Video> Videos => Set<Video>();
+    public DbSet<VideoRendition> VideoRenditions => Set<VideoRendition>();
 
     /// <summary>Keys that protect email-confirmation / password-reset tokens. Stored in DB so they survive restarts.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -32,6 +34,36 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
             e.Property(x => x.DisplayName).HasMaxLength(100).IsRequired();
             e.Property(x => x.Bio).HasMaxLength(1000);
             e.Property(x => x.AvatarUrl).HasMaxLength(500);
+        });
+
+        builder.Entity<Video>(e =>
+        {
+            e.ToTable("Videos");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            e.Property(x => x.Description).HasMaxLength(5000);
+            e.Property(x => x.Visibility).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.Status).HasConversion<string>().HasMaxLength(20);
+            e.Property(x => x.OriginalFileName).HasMaxLength(260);
+            e.Property(x => x.SourcePath).HasMaxLength(500);
+            e.Property(x => x.ThumbnailUrl).HasMaxLength(500);
+            e.Property(x => x.ProcessingError).HasMaxLength(1000);
+
+            e.HasIndex(x => x.Status);
+            e.HasIndex(x => new { x.OwnerId, x.CreatedAt });
+            e.HasIndex(x => new { x.Visibility, x.Status, x.PublishedAt });
+
+            // Deleting a user must be an explicit decision (files on disk need cleaning up too)
+            e.HasOne(x => x.Owner).WithMany().HasForeignKey(x => x.OwnerId).OnDelete(DeleteBehavior.Restrict);
+        });
+
+        builder.Entity<VideoRendition>(e =>
+        {
+            e.ToTable("VideoRenditions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Name).HasMaxLength(20).IsRequired();
+            e.HasIndex(x => new { x.VideoId, x.Name }).IsUnique();
+            e.HasOne(x => x.Video).WithMany(v => v.Renditions).HasForeignKey(x => x.VideoId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<RefreshToken>(e =>

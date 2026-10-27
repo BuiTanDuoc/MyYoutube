@@ -4,4 +4,5 @@ obj/
 *.user
 appsettings.*.local.json
 storage/
+storage-private/
 src/MiniTube.Api/appsettings.Development.json
