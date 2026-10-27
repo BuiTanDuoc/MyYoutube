@@ -81,6 +81,16 @@ builder.Services.AddRateLimiter(o =>
             Window = TimeSpan.FromMinutes(10),
             QueueLimit = 0
         }));
+
+    // Playback signals (views, progress heartbeats, reactions): per user, or per IP when anonymous
+    o.AddPolicy("playback", ctx => RateLimitPartition.GetFixedWindowLimiter(
+        ctx.User.FindFirst("sub")?.Value ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown",
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = 120,
+            Window = TimeSpan.FromMinutes(1),
+            QueueLimit = 0
+        }));
 });
 
 // ---- Swagger with Bearer ----
@@ -143,9 +153,9 @@ if (app.Environment.IsDevelopment())
     app.UseStaticFiles(); // wwwroot/player-test.html (dev-only HLS test page)
 
 app.UseCors("Frontend");
-app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseRateLimiter(); // after authentication so the "playback" policy can partition by user
 app.MapControllers();
 
 app.Run();

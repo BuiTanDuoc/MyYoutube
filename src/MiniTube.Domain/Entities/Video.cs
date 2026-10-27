@@ -35,5 +35,10 @@ public class Video
     public DateTime? UpdatedAt { get; set; }
     public DateTime? PublishedAt { get; set; } // set when processing completes
 
+    // Denormalised counters (kept in sync by PlaybackService with atomic UPDATEs)
+    public long ViewCount { get; set; }
+    public int LikeCount { get; set; }
+    public int DislikeCount { get; set; }
+
     public ICollection<VideoRendition> Renditions { get; set; } = new List<VideoRendition>();
 }

@@ -9,6 +9,7 @@ public interface IUserService
     Task<UserDto> UpdateProfileAsync(Guid userId, UpdateProfileRequest request, CancellationToken ct = default);
     Task<UserDto> SetAvatarAsync(Guid userId, Stream content, long length, CancellationToken ct = default);
     Task<UserDto> RemoveAvatarAsync(Guid userId, CancellationToken ct = default);
+    Task<UserDto> SetWatchHistoryPausedAsync(Guid userId, bool paused, CancellationToken ct = default);
     Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, string? ip, CancellationToken ct = default);
 
     // Admin

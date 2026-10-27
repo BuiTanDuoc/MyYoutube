@@ -12,6 +12,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<Video> Videos => Set<Video>();
     public DbSet<VideoRendition> VideoRenditions => Set<VideoRendition>();
+    public DbSet<VideoReaction> VideoReactions => Set<VideoReaction>();
+    public DbSet<WatchHistoryEntry> WatchHistory => Set<WatchHistoryEntry>();
+    public DbSet<VideoView> VideoViews => Set<VideoView>();
 
     /// <summary>Keys that protect email-confirmation / password-reset tokens. Stored in DB so they survive restarts.</summary>
     public DbSet<DataProtectionKey> DataProtectionKeys => Set<DataProtectionKey>();
@@ -64,6 +67,38 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
             e.Property(x => x.Name).HasMaxLength(20).IsRequired();
             e.HasIndex(x => new { x.VideoId, x.Name }).IsUnique();
             e.HasOne(x => x.Video).WithMany(v => v.Renditions).HasForeignKey(x => x.VideoId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<VideoReaction>(e =>
+        {
+            e.ToTable("VideoReactions");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.Type).HasConversion<string>().HasMaxLength(10);
+            e.HasIndex(x => new { x.UserId, x.VideoId }).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.Type, x.CreatedAt });
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Video).WithMany().HasForeignKey(x => x.VideoId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<WatchHistoryEntry>(e =>
+        {
+            e.ToTable("WatchHistory");
+            e.HasKey(x => x.Id);
+            e.HasIndex(x => new { x.UserId, x.VideoId }).IsUnique();
+            e.HasIndex(x => new { x.UserId, x.LastWatchedAt });
+            e.HasOne<ApplicationUser>().WithMany().HasForeignKey(x => x.UserId).OnDelete(DeleteBehavior.Cascade);
+            e.HasOne(x => x.Video).WithMany().HasForeignKey(x => x.VideoId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<VideoView>(e =>
+        {
+            e.ToTable("VideoViews");
+            e.HasKey(x => x.Id);
+            e.Property(x => x.ViewerKey).HasMaxLength(64);
+            e.HasIndex(x => new { x.VideoId, x.UserId, x.CreatedAt });
+            e.HasIndex(x => new { x.VideoId, x.ViewerKey, x.CreatedAt });
+            // UserId is deliberately a plain column (no FK): anonymous rows have none
+            e.HasOne(x => x.Video).WithMany().HasForeignKey(x => x.VideoId).OnDelete(DeleteBehavior.Cascade);
         });
 
         builder.Entity<RefreshToken>(e =>

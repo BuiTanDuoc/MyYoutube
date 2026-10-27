@@ -34,6 +34,9 @@ public static class VideoMapping
         }).ToList(),
         CreatedAt = v.CreatedAt,
         PublishedAt = v.PublishedAt,
+        ViewCount = v.ViewCount,
+        LikeCount = v.LikeCount,
+        DislikeCount = includePrivateFields ? v.DislikeCount : null,
         SizeBytes = includePrivateFields ? v.SizeBytes : null,
         ProcessingProgress = includePrivateFields ? v.ProcessingProgress : null,
         ProcessingError = includePrivateFields ? v.ProcessingError : null

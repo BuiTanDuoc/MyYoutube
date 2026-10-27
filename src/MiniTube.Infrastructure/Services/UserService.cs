@@ -100,6 +100,15 @@ public class UserService : IUserService
         return user.ToDto(await _users.GetRolesAsync(user));
     }
 
+    public async Task<UserDto> SetWatchHistoryPausedAsync(Guid userId, bool paused, CancellationToken ct = default)
+    {
+        var user = await FindOrThrowAsync(userId);
+        user.WatchHistoryPaused = paused;
+        user.UpdatedAt = DateTime.UtcNow;
+        (await _users.UpdateAsync(user)).ThrowIfFailed();
+        return user.ToDto(await _users.GetRolesAsync(user));
+    }
+
     public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request, string? ip, CancellationToken ct = default)
     {
         var user = await FindOrThrowAsync(userId);

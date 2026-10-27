@@ -16,3 +16,9 @@ public enum VideoStatus
     Ready = 4,
     Failed = 5
 }
+
+public enum ReactionType
+{
+    Like = 1,
+    Dislike = 2
+}

@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MiniTube.Application.Auth;
 using MiniTube.Application.Common;
+using MiniTube.Application.Playback;
 using MiniTube.Application.Users;
 using MiniTube.Application.Videos;
 using MiniTube.Domain.Entities;
@@ -83,6 +84,7 @@ public static class DependencyInjection
         services.AddScoped<IVideoProcessor, VideoProcessor>();
         services.AddScoped<IVideoService, VideoService>();
         services.AddScoped<IVideoStreamService, VideoStreamService>();
+        services.AddScoped<IPlaybackService, PlaybackService>();
         services.AddHostedService<VideoProcessingWorker>();
 
         services.AddHostedService<RefreshTokenCleanupService>();

@@ -11,6 +11,7 @@ public static class UserMapping
         UserName = u.UserName ?? string.Empty,
         Email = u.Email ?? string.Empty,
         EmailConfirmed = u.EmailConfirmed,
+        WatchHistoryPaused = u.WatchHistoryPaused,
         DisplayName = u.DisplayName,
         Bio = u.Bio,
         AvatarUrl = u.AvatarUrl,

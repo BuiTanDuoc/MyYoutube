@@ -41,8 +41,8 @@ dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
 cd ../..
 dotnet tool install --global dotnet-ef   # once
 dotnet ef migrations add InitialIdentity -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
-# Already applied an earlier migration? Add another one instead, e.g. for the video tables:
-#   dotnet ef migrations add AddVideos -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
+# Already applied earlier migrations? Add another one instead (this step: reactions, history, views):
+#   dotnet ef migrations add AddPlayback -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
 
 dotnet run --project src/MiniTube.Api    # Development: auto-migrates + seeds roles & admin
 ```
@@ -85,6 +85,27 @@ curl -k -X PUT "https://localhost:7100/api/videos/<id>/source?fileName=test.mp4"
 - HLS adaptive streaming: `master.m3u8` + one playlist per rendition (1080p / 720p / 480p / 360p, never upscaled; tiny sources get a single native-size rendition), 4-second `.ts` segments. Kept in the **private** storage root and served through `/api/stream/{id}/...`, which checks visibility.
 - Statuses: `PendingUpload -> Uploading -> Queued -> Processing -> Ready | Failed`.
 - The database is the source of truth: after a crash/restart, `Processing` videos are re-queued automatically. Run a single API instance (the queue is in-memory + DB claim).
+
+### Playback tracking (views, history, likes)
+
+How the React player should use it:
+
+| When | Call |
+|---|---|
+| Open the watch page | `GET /api/videos/{id}` -> use `resumePositionSeconds`, `myReaction`, `viewCount`, `likeCount` |
+| After the viewer really watched `min(30 s, 50 % of duration)` (once per page view) | `POST /api/videos/{id}/views` (anonymous OK) |
+| Every ~15 s while playing, and on pause / seek end / tab hidden / page leave | `PUT /api/videos/{id}/progress` `{ "positionSeconds": 73.5 }` (signed in) |
+| Like button | `PUT /api/videos/{id}/reaction` `{ "type": "Like" \| "Dislike" \| null }` |
+| Pages | `GET /api/videos/liked`, `GET /api/users/me/history`, `DELETE /api/users/me/history[/{videoId}]` |
+| Privacy toggle | `PUT /api/users/me/history/settings` `{ "paused": true }` (also exposed as `watchHistoryPaused` in `/api/users/me`) |
+
+Rules:
+- A view counts once per viewer per 24 h. Signed-in viewers are identified by account; anonymous viewers (and users who paused their history) only by a one-way hash of IP + user agent. The count is **client-reported**, so it is a good-enough heuristic, not tamper-proof.
+- A video counts as completed at 95 %; `resumePositionSeconds` is null for completed videos or when less than 5 s were watched.
+- `dislikeCount` is returned to the owner/admin only (like YouTube Studio); everyone else sees `likeCount`.
+- Private videos of other users cannot be tracked, liked or listed in history/likes.
+- On page leave use `fetch(url, { method: 'PUT', keepalive: true, headers: { Authorization } })`: `navigator.sendBeacon` cannot send an Authorization header.
+- Counters (`viewCount`, `likeCount`) are denormalised on `Videos` and updated with atomic SQL increments.
 
 ### Try playback
 
@@ -135,6 +156,13 @@ storage-private/    (never served)               videos/{id}/source/original.mp4
 | PUT / DELETE | /api/videos/{id} | Bearer (owner/admin) |
 | POST | /api/videos/{id}/reprocess | Bearer (owner/admin, Failed only) |
 | GET | /api/stream/{id}/master.m3u8 (+ renditions, segments) | – (private: Bearer owner/admin) |
+| POST | /api/videos/{id}/views | – (counted once / viewer / 24 h) |
+| PUT | /api/videos/{id}/progress | Bearer |
+| PUT | /api/videos/{id}/reaction | Bearer |
+| GET | /api/videos/liked | Bearer |
+| GET / DELETE | /api/users/me/history | Bearer |
+| DELETE | /api/users/me/history/{videoId} | Bearer |
+| PUT | /api/users/me/history/settings | Bearer |
 | GET | /api/admin/users | Admin |
 | PUT | /api/admin/users/{id}/lock | Admin |
 | PUT | /api/admin/users/{id}/roles | Admin |

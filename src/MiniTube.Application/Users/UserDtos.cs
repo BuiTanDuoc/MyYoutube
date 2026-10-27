@@ -8,6 +8,7 @@ public class UserDto
     public string UserName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public bool EmailConfirmed { get; set; }
+    public bool WatchHistoryPaused { get; set; }
     public string DisplayName { get; set; } = string.Empty;
     public string? Bio { get; set; }
     /// <summary>Relative URL such as /media/avatars/xxx.webp (prefix it with the API base URL).</summary>
@@ -74,4 +75,9 @@ public class SetRolesRequest
 {
     [Required]
     public List<string> Roles { get; set; } = [];
+}
+
+public class SetWatchHistoryPausedRequest
+{
+    public bool Paused { get; set; }
 }

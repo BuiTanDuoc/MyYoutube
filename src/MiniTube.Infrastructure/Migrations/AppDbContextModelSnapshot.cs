@@ -244,6 +244,9 @@ namespace MiniTube.Infrastructure.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<bool>("WatchHistoryPaused")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NormalizedEmail")
@@ -315,10 +318,16 @@ namespace MiniTube.Infrastructure.Migrations
                         .HasMaxLength(5000)
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<int>("DislikeCount")
+                        .HasColumnType("int");
+
                     b.Property<double>("DurationSeconds")
                         .HasColumnType("float");
 
                     b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<int>("LikeCount")
                         .HasColumnType("int");
 
                     b.Property<string>("OriginalFileName")
@@ -368,6 +377,9 @@ namespace MiniTube.Infrastructure.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<long>("ViewCount")
+                        .HasColumnType("bigint");
+
                     b.Property<string>("Visibility")
                         .IsRequired()
                         .HasMaxLength(20)
@@ -385,6 +397,38 @@ namespace MiniTube.Infrastructure.Migrations
                     b.HasIndex("Visibility", "Status", "PublishedAt");
 
                     b.ToTable("Videos", (string)null);
+                });
+
+            modelBuilder.Entity("MiniTube.Domain.Entities.VideoReaction", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VideoId");
+
+                    b.HasIndex("UserId", "VideoId")
+                        .IsUnique();
+
+                    b.HasIndex("UserId", "Type", "CreatedAt");
+
+                    b.ToTable("VideoReactions", (string)null);
                 });
 
             modelBuilder.Entity("MiniTube.Domain.Entities.VideoRendition", b =>
@@ -422,6 +466,67 @@ namespace MiniTube.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("VideoRenditions", (string)null);
+                });
+
+            modelBuilder.Entity("MiniTube.Domain.Entities.VideoView", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ViewerKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VideoId", "UserId", "CreatedAt");
+
+                    b.HasIndex("VideoId", "ViewerKey", "CreatedAt");
+
+                    b.ToTable("VideoViews", (string)null);
+                });
+
+            modelBuilder.Entity("MiniTube.Domain.Entities.WatchHistoryEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("Completed")
+                        .HasColumnType("bit");
+
+                    b.Property<double>("LastPositionSeconds")
+                        .HasColumnType("float");
+
+                    b.Property<DateTime>("LastWatchedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("VideoId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("VideoId");
+
+                    b.HasIndex("UserId", "LastWatchedAt");
+
+                    b.HasIndex("UserId", "VideoId")
+                        .IsUnique();
+
+                    b.ToTable("WatchHistory", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -497,10 +602,55 @@ namespace MiniTube.Infrastructure.Migrations
                     b.Navigation("Owner");
                 });
 
+            modelBuilder.Entity("MiniTube.Domain.Entities.VideoReaction", b =>
+                {
+                    b.HasOne("MiniTube.Domain.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MiniTube.Domain.Entities.Video", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Video");
+                });
+
             modelBuilder.Entity("MiniTube.Domain.Entities.VideoRendition", b =>
                 {
                     b.HasOne("MiniTube.Domain.Entities.Video", "Video")
                         .WithMany("Renditions")
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Video");
+                });
+
+            modelBuilder.Entity("MiniTube.Domain.Entities.VideoView", b =>
+                {
+                    b.HasOne("MiniTube.Domain.Entities.Video", "Video")
+                        .WithMany()
+                        .HasForeignKey("VideoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Video");
+                });
+
+            modelBuilder.Entity("MiniTube.Domain.Entities.WatchHistoryEntry", b =>
+                {
+                    b.HasOne("MiniTube.Domain.Entities.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("MiniTube.Domain.Entities.Video", "Video")
+                        .WithMany()
                         .HasForeignKey("VideoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

@@ -64,7 +64,17 @@ public class VideoDto
     public DateTime CreatedAt { get; set; }
     public DateTime? PublishedAt { get; set; }
 
+    public long ViewCount { get; set; }
+    public int LikeCount { get; set; }
+
+    // Only filled for a signed-in viewer
+    public ReactionType? MyReaction { get; set; }
+
+    /// <summary>Where to resume playback (null = start from the beginning).</summary>
+    public double? ResumePositionSeconds { get; set; }
+
     // Owner / admin only (null for everyone else)
+    public int? DislikeCount { get; set; }
     public long? SizeBytes { get; set; }
     public int? ProcessingProgress { get; set; }
     public string? ProcessingError { get; set; }
@@ -79,6 +89,7 @@ public class VideoListItemDto
     public VideoVisibility Visibility { get; set; }
     public VideoStatus Status { get; set; }
     public int ProcessingProgress { get; set; }
+    public long ViewCount { get; set; }
     public VideoOwnerDto Owner { get; set; } = null!;
     public DateTime CreatedAt { get; set; }
     public DateTime? PublishedAt { get; set; }

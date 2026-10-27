@@ -104,3 +104,44 @@ Authorization: Bearer PASTE_ACCESS_TOKEN
 
 ### HLS master playlist
 GET {{host}}/api/stream/PASTE_VIDEO_ID/master.m3u8
+
+### ---- Playback ----
+### Count a view (anonymous allowed; call once after ~30 s of real watching)
+POST {{host}}/api/videos/PASTE_VIDEO_ID/views
+
+### Progress heartbeat (signed-in)
+PUT {{host}}/api/videos/PASTE_VIDEO_ID/progress
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{ "positionSeconds": 73.5 }
+
+### Like / Dislike / remove (type null)
+PUT {{host}}/api/videos/PASTE_VIDEO_ID/reaction
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{ "type": "Like" }
+
+### Liked videos
+GET {{host}}/api/videos/liked?page=1&pageSize=20
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Watch history
+GET {{host}}/api/users/me/history?page=1&pageSize=20
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Remove one entry / clear all
+DELETE {{host}}/api/users/me/history/PASTE_VIDEO_ID
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+###
+DELETE {{host}}/api/users/me/history
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Pause / resume watch history
+PUT {{host}}/api/users/me/history/settings
+Authorization: Bearer PASTE_ACCESS_TOKEN
+Content-Type: application/json
+
+{ "paused": true }

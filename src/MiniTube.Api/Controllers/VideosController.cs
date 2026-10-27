@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Options;
 using MiniTube.Api.Extensions;
 using MiniTube.Application.Common;
+using MiniTube.Application.Playback;
 using MiniTube.Application.Videos;
 using MiniTube.Domain.Constants;
 using MiniTube.Infrastructure.Options;
@@ -15,11 +17,13 @@ namespace MiniTube.Api.Controllers;
 public class VideosController : ControllerBase
 {
     private readonly IVideoService _videos;
+    private readonly IPlaybackService _playback;
     private readonly VideoOptions _options;
 
-    public VideosController(IVideoService videos, IOptions<VideoOptions> options)
+    public VideosController(IVideoService videos, IPlaybackService playback, IOptions<VideoOptions> options)
     {
         _videos = videos;
+        _playback = playback;
         _options = options.Value;
     }
 
@@ -90,4 +94,39 @@ public class VideosController : ControllerBase
     [HttpPost("{id:guid}/reprocess")]
     public async Task<ActionResult<VideoDto>> Reprocess(Guid id, CancellationToken ct) =>
         Ok(await _videos.ReprocessAsync(User.GetUserId(), IsAdmin, id, ct));
+
+    // ---------------- playback: views, progress, reactions ----------------
+
+    /// <summary>
+    /// The player calls this ONCE per page view after the viewer really watched
+    /// min(30 s, 50% of the video). Repeat calls from the same viewer within 24 h are not counted.
+    /// </summary>
+    [AllowAnonymous]
+    [HttpPost("{id:guid}/views")]
+    [EnableRateLimiting("playback")]
+    public async Task<ActionResult<ViewResultDto>> RegisterView(Guid id, CancellationToken ct) =>
+        Ok(await _playback.RegisterViewAsync(id, User.TryGetUserId(), HttpContext.ComputeViewerKey(), ct));
+
+    /// <summary>Heartbeat (every ~15 s while playing, and on pause/leave). Powers resume + history.</summary>
+    [Authorize]
+    [HttpPut("{id:guid}/progress")]
+    [EnableRateLimiting("playback")]
+    public async Task<IActionResult> UpdateProgress(Guid id, UpdateProgressRequest request, CancellationToken ct)
+    {
+        await _playback.UpdateProgressAsync(User.GetUserId(), id, request.PositionSeconds, ct);
+        return NoContent();
+    }
+
+    /// <summary>{ "type": "Like" | "Dislike" | null }  (null removes the reaction)</summary>
+    [Authorize]
+    [HttpPut("{id:guid}/reaction")]
+    [EnableRateLimiting("playback")]
+    public async Task<ActionResult<ReactionStateDto>> SetReaction(Guid id, SetReactionRequest request, CancellationToken ct) =>
+        Ok(await _playback.SetReactionAsync(User.GetUserId(), id, request.Type, ct));
+
+    /// <summary>The "Liked videos" list of the current user, most recently liked first.</summary>
+    [Authorize]
+    [HttpGet("liked")]
+    public async Task<ActionResult<PagedResult<VideoListItemDto>>> Liked([FromQuery] PagingQuery query, CancellationToken ct) =>
+        Ok(await _playback.ListLikedAsync(User.GetUserId(), query, ct));
 }

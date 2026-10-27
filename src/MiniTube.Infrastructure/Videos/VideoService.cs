@@ -153,7 +153,26 @@ public class VideoService : IVideoService
         if (!privileged && !IsPubliclyViewable(video))
             throw AppException.NotFound("Video not found");
 
-        return video.ToDto(includePrivateFields: privileged);
+        var dto = video.ToDto(includePrivateFields: privileged);
+
+        // Viewer-specific data for signed-in users
+        if (requesterId is Guid uid)
+        {
+            dto.MyReaction = await _db.VideoReactions.AsNoTracking()
+                .Where(r => r.UserId == uid && r.VideoId == videoId)
+                .Select(r => (ReactionType?)r.Type)
+                .SingleOrDefaultAsync(ct);
+
+            var progress = await _db.WatchHistory.AsNoTracking()
+                .Where(h => h.UserId == uid && h.VideoId == videoId)
+                .Select(h => new { h.LastPositionSeconds, h.Completed })
+                .SingleOrDefaultAsync(ct);
+
+            if (progress is { Completed: false, LastPositionSeconds: >= 5 })
+                dto.ResumePositionSeconds = Math.Floor(progress.LastPositionSeconds);
+        }
+
+        return dto;
     }
 
     public Task<PagedResult<VideoListItemDto>> ListPublicAsync(VideoListQuery query, CancellationToken ct = default)
@@ -264,25 +283,7 @@ public class VideoService : IVideoService
         var items = await ordered
             .Skip((page - 1) * size)
             .Take(size)
-            .Select(v => new VideoListItemDto
-            {
-                Id = v.Id,
-                Title = v.Title,
-                ThumbnailUrl = v.ThumbnailUrl,
-                DurationSeconds = v.DurationSeconds,
-                Visibility = v.Visibility,
-                Status = v.Status,
-                ProcessingProgress = v.ProcessingProgress,
-                CreatedAt = v.CreatedAt,
-                PublishedAt = v.PublishedAt,
-                Owner = new VideoOwnerDto
-                {
-                    Id = v.Owner.Id,
-                    UserName = v.Owner.UserName ?? string.Empty,
-                    DisplayName = v.Owner.DisplayName,
-                    AvatarUrl = v.Owner.AvatarUrl
-                }
-            })
+            .Select(VideoProjections.ListItem)
             .ToListAsync(ct);
 
         return new PagedResult<VideoListItemDto> { Items = items, Page = page, PageSize = size, TotalCount = total };
