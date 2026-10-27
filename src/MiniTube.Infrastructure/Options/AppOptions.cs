@@ -58,3 +58,12 @@ public class VideoOptions
     /// <summary>Keep the uploaded original after processing (lets you re-encode later, costs disk space).</summary>
     public bool KeepOriginal { get; set; } = true;
 }
+
+public class SearchOptions
+{
+    /// <summary>
+    /// false (default): portable LIKE search on the normalised text. Works everywhere, incl. LocalDB.
+    /// true: SQL Server full-text CONTAINS. Needs the full-text index from the README (not available on LocalDB).
+    /// </summary>
+    public bool UseFullText { get; set; }
+}

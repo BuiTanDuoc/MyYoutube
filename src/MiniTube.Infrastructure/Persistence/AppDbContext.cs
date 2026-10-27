@@ -39,6 +39,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
             e.Property(x => x.DisplayName).HasMaxLength(100).IsRequired();
             e.Property(x => x.Bio).HasMaxLength(1000);
             e.Property(x => x.AvatarUrl).HasMaxLength(500);
+            e.Property(x => x.SearchName).HasMaxLength(400);
         });
 
         builder.Entity<Video>(e =>
@@ -53,6 +54,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser, ApplicationRole, 
             e.Property(x => x.SourcePath).HasMaxLength(500);
             e.Property(x => x.ThumbnailUrl).HasMaxLength(500);
             e.Property(x => x.ProcessingError).HasMaxLength(1000);
+            e.Property(x => x.SearchTitle).HasMaxLength(300);
+            e.Property(x => x.SearchText).HasMaxLength(6000);
+            e.HasIndex(x => x.SearchTitle); // speeds up the "starts with" autocomplete
 
             e.HasIndex(x => x.Status);
             e.HasIndex(x => new { x.OwnerId, x.CreatedAt });

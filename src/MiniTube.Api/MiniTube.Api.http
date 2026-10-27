@@ -203,3 +203,23 @@ Content-Type: application/json
 ###
 DELETE {{host}}/api/playlists/PASTE_PLAYLIST_ID
 Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### ---- Search ----
+### Videos (accent-insensitive; all parameters optional)
+GET {{host}}/api/search/videos?q=huong dan hoc&sort=Relevance&uploadDate=Month&duration=Medium&page=1&pageSize=20
+
+### Browse without text
+GET {{host}}/api/search/videos?sort=MostViewed&uploadDate=Week
+
+### Search inside one channel
+GET {{host}}/api/search/videos?q=intro&ownerId=PASTE_USER_ID
+
+### Channels
+GET {{host}}/api/search/channels?q=john
+
+### Autocomplete
+GET {{host}}/api/search/suggestions?q=huo
+
+### Admin: rebuild the search columns
+POST {{host}}/api/admin/search/reindex
+Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN

@@ -35,6 +35,10 @@ public class Video
     public DateTime? UpdatedAt { get; set; }
     public DateTime? PublishedAt { get; set; } // set when processing completes
 
+    // Search: lower-case, accent-free copies of the text (see SearchNormalizer). Maintained by the app.
+    public string? SearchTitle { get; set; }
+    public string? SearchText { get; set; } // title + description
+
     // Denormalised counters (kept in sync by PlaybackService with atomic UPDATEs)
     public long ViewCount { get; set; }
     public int LikeCount { get; set; }

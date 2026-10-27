@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MiniTube.Application.Auth;
 using MiniTube.Application.Common;
+using MiniTube.Application.Search;
 using MiniTube.Domain.Constants;
 using MiniTube.Domain.Entities;
 using MiniTube.Infrastructure.Options;
@@ -50,6 +51,7 @@ public class AuthService : IAuthService
             CreatedAt = DateTime.UtcNow
         };
 
+        SearchNormalizer.ApplyTo(user);
         (await _users.CreateAsync(user, request.Password)).ThrowIfFailed("Registration failed");
         (await _users.AddToRoleAsync(user, Roles.User)).ThrowIfFailed();
 

@@ -41,8 +41,8 @@ dotnet user-secrets set "Jwt:Key" "$(openssl rand -base64 48)"
 cd ../..
 dotnet tool install --global dotnet-ef   # once
 dotnet ef migrations add InitialIdentity -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
-# Already applied earlier migrations? Add another one instead (this step: playlists):
-#   dotnet ef migrations add AddPlaylists -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
+# Already applied earlier migrations? Add another one instead (this step: search columns):
+#   dotnet ef migrations add AddSearch -p src/MiniTube.Infrastructure -s src/MiniTube.Api -o Persistence/Migrations
 
 dotnet run --project src/MiniTube.Api    # Development: auto-migrates + seeds roles & admin
 ```
@@ -118,6 +118,29 @@ Rules:
 - **Reordering (drag and drop):** `PUT /api/playlists/{id}/items/{itemId}/move` with `{ "afterItemId": "<the item it now sits under>" }` (null = top). `position` is only a sort key: increasing but may have gaps, so always sort by it instead of using it as an index.
 - **Playing a playlist:** `GET /api/playlists/{id}/items?pageSize=100` gives the queue; the React watch page keeps `?list={id}` and moves to the next item when a video ends.
 
+### Search
+
+- `GET /api/search/videos?q=&sort=&uploadDate=&duration=&ownerId=&page=&pageSize=`
+  - `sort`: `Relevance` (default) | `Newest` | `MostViewed` | `MostLiked`
+  - `uploadDate`: `Any` | `Today` (24 h) | `Week` | `Month` | `Year`
+  - `duration`: `Any` | `Short` (< 4 min) | `Medium` (4-20 min) | `Long` (> 20 min)
+  - Only **Public + Ready** videos are searchable (unlisted ones are link-only). Without `q` it just browses with the filters.
+- `GET /api/search/channels?q=` users that have at least one public video, most videos first.
+- `GET /api/search/suggestions?q=` autocomplete: up to 6 video titles + 2 channels (`type: "video" | "channel"`). Debounce ~250 ms and cancel the previous request in the search box.
+- `POST /api/admin/search/reindex` (admin) rebuilds the search columns.
+
+How it works:
+- Title + description are stored a second time as **lower-case, accent-free text** (`Hướng dẫn học lập trình` -> `huong dan hoc lap trinh`, `đ` -> `d`), so people can type without accents. The columns (`Videos.SearchTitle/SearchText`, `Users.SearchName`) are kept up to date on create/update, and a startup job fills them for rows that existed before (check the log: "Search index backfill").
+- Every word of the query must appear (AND). Relevance = phrase/title matches first, then popularity (views, likes) and a small freshness bonus, computed over the 300 most popular matches, so deep pages stop at 300 results.
+- Default mode is a portable `LIKE` search (fine for thousands of videos, works on LocalDB). For a big library switch to SQL Server full-text:
+  1. Run once in SSMS (full-text can't be created inside a normal migration; LocalDB doesn't support it):
+     ```sql
+     CREATE FULLTEXT CATALOG MiniTubeCatalog;
+     CREATE FULLTEXT INDEX ON dbo.Videos(SearchText LANGUAGE 0)
+         KEY INDEX PK_Videos ON MiniTubeCatalog WITH CHANGE_TRACKING AUTO;
+     ```
+  2. Set `"Search": { "UseFullText": true }`. Words then match from their start (`hoc*`) instead of anywhere inside a word.
+
 ### Try playback
 
 Run the API in Development and open `https://localhost:7100/player-test.html`, paste the video id (and a token for Private videos).
@@ -185,6 +208,10 @@ storage-private/    (never served)               videos/{id}/source/original.mp4
 | DELETE | /api/playlists/{id}/items/{itemId} | Bearer (owner) |
 | DELETE | /api/playlists/{id}/videos/{videoId} | Bearer (owner) |
 | PUT | /api/playlists/{id}/items/{itemId}/move | Bearer (owner) |
+| GET | /api/search/videos | – |
+| GET | /api/search/channels | – |
+| GET | /api/search/suggestions | – |
+| POST | /api/admin/search/reindex | Admin |
 | GET | /api/admin/users | Admin |
 | PUT | /api/admin/users/{id}/lock | Admin |
 | PUT | /api/admin/users/{id}/roles | Admin |

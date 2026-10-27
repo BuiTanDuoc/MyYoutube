@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MiniTube.Application.Common;
+using MiniTube.Application.Search;
 using MiniTube.Application.Videos;
 using MiniTube.Domain.Entities;
 using MiniTube.Domain.Enums;
@@ -45,6 +46,7 @@ public class VideoService : IVideoService
             Description = Clean(request.Description),
             Visibility = request.Visibility
         };
+        SearchNormalizer.ApplyTo(video);
         _db.Videos.Add(video);
         await _db.SaveChangesAsync(ct);
 
@@ -205,6 +207,7 @@ public class VideoService : IVideoService
         video.Description = Clean(request.Description);
         video.Visibility = request.Visibility;
         video.UpdatedAt = DateTime.UtcNow;
+        SearchNormalizer.ApplyTo(video);
         await _db.SaveChangesAsync(ct);
 
         return await LoadDtoAsync(videoId, includePrivateFields: true, ct);

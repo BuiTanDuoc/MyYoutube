@@ -8,6 +8,9 @@ public class ApplicationUser : IdentityUser<Guid>
     public string? Bio { get; set; }
     public string? AvatarUrl { get; set; }
 
+    /// <summary>Normalised "display name + user name" for channel search.</summary>
+    public string? SearchName { get; set; }
+
     /// <summary>When true: no watch history is recorded and views are not tied to the account.</summary>
     public bool WatchHistoryPaused { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

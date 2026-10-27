@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MiniTube.Application.Common;
+using MiniTube.Application.Search;
 using MiniTube.Application.Users;
 using MiniTube.Domain.Constants;
 using MiniTube.Domain.Entities;
@@ -42,6 +43,7 @@ public class UserService : IUserService
         var user = await FindOrThrowAsync(userId);
 
         user.DisplayName = request.DisplayName.Trim();
+        SearchNormalizer.ApplyTo(user);
         user.Bio = string.IsNullOrWhiteSpace(request.Bio) ? null : request.Bio.Trim();
         user.UpdatedAt = DateTime.UtcNow;
 

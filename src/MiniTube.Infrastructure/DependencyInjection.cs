@@ -7,12 +7,14 @@ using MiniTube.Application.Auth;
 using MiniTube.Application.Common;
 using MiniTube.Application.Playback;
 using MiniTube.Application.Playlists;
+using MiniTube.Application.Search;
 using MiniTube.Application.Users;
 using MiniTube.Application.Videos;
 using MiniTube.Domain.Entities;
 using MiniTube.Infrastructure.Options;
 using MiniTube.Infrastructure.Persistence;
 using MiniTube.Infrastructure.Playlists;
+using MiniTube.Infrastructure.Search;
 using MiniTube.Infrastructure.Services;
 using MiniTube.Infrastructure.Storage;
 using MiniTube.Infrastructure.Videos;
@@ -36,6 +38,7 @@ public static class DependencyInjection
         services.Configure<FrontendOptions>(config.GetSection("Frontend"));
         services.Configure<StorageOptions>(config.GetSection("Storage"));
         services.Configure<VideoOptions>(config.GetSection("Video"));
+        services.Configure<SearchOptions>(config.GetSection("Search"));
 
         // Email-confirmation / reset-password tokens are protected with these keys.
         // Persisting them in the DB keeps old links valid across restarts and multiple instances.
@@ -88,6 +91,9 @@ public static class DependencyInjection
         services.AddScoped<IVideoStreamService, VideoStreamService>();
         services.AddScoped<IPlaybackService, PlaybackService>();
         services.AddScoped<IPlaylistService, PlaylistService>();
+        services.AddScoped<ISearchService, SearchService>();
+        services.AddScoped<ISearchIndexer, SearchIndexer>();
+        services.AddHostedService<SearchBackfillService>();
         services.AddHostedService<VideoProcessingWorker>();
 
         services.AddHostedService<RefreshTokenCleanupService>();
