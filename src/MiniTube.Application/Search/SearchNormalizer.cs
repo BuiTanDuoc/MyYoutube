@@ -62,4 +62,27 @@ public static class SearchNormalizer
 
     public static void ApplyTo(ApplicationUser user) =>
         user.SearchName = Normalize($"{user.DisplayName} {user.UserName}");
+
+    // Very common words that say nothing about the topic (already in normalised, accent-free form)
+    private static readonly HashSet<string> Stopwords = new(StringComparer.Ordinal)
+    {
+        // Vietnamese
+        "va", "la", "cua", "cho", "voi", "nhung", "mot", "cac", "trong", "khi", "de", "den", "tu", "ve",
+        "nay", "do", "se", "co", "khong", "duoc", "da", "dang", "nhu", "cung", "hay", "hoac", "nhieu",
+        "rat", "nen", "vi", "neu", "thi", "ma", "tai", "theo", "tren", "duoi", "sau", "truoc", "ra",
+        "vao", "len", "xuong", "nao", "gi", "phan",
+        // English
+        "the", "an", "of", "and", "to", "in", "on", "for", "with", "is", "are", "how", "what", "vs",
+        "from", "this", "that", "your", "you", "my", "it", "at", "by", "be", "or", "as",
+        // video noise
+        "official", "video", "full", "hd", "mv", "part", "ep"
+    };
+
+    /// <summary>Meaningful words of a title: no stopwords, no pure numbers, at least 2 characters.</summary>
+    public static List<string> SignificantTokens(string? text) =>
+        Normalize(text)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(t => t.Length >= 2 && !Stopwords.Contains(t) && !t.All(char.IsDigit))
+            .Distinct()
+            .ToList();
 }

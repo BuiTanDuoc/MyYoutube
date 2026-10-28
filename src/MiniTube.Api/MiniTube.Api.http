@@ -223,3 +223,18 @@ GET {{host}}/api/search/suggestions?q=huo
 ### Admin: rebuild the search columns
 POST {{host}}/api/admin/search/reindex
 Authorization: Bearer PASTE_ADMIN_ACCESS_TOKEN
+
+### ---- Recommendations ----
+### Related videos for the watch-page sidebar (anonymous OK)
+GET {{host}}/api/videos/PASTE_VIDEO_ID/related?limit=20
+
+### Trending (window = Day | Week | Month)
+GET {{host}}/api/feed/trending?window=Week&page=1&pageSize=20
+
+### Home feed: personalised when a token is sent, trending otherwise
+GET {{host}}/api/feed/recommended?page=1&pageSize=20
+Authorization: Bearer PASTE_ACCESS_TOKEN
+
+### Continue watching
+GET {{host}}/api/feed/continue-watching?limit=20
+Authorization: Bearer PASTE_ACCESS_TOKEN

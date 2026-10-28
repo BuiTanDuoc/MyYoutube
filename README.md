@@ -141,6 +141,22 @@ How it works:
      ```
   2. Set `"Search": { "UseFullText": true }`. Words then match from their start (`hoc*`) instead of anywhere inside a word.
 
+### Recommendations (no extra migration)
+
+| Endpoint | Use |
+|---|---|
+| `GET /api/videos/{id}/related?limit=20` | watch-page sidebar / "up next" (first item). Anonymous OK, not personalised |
+| `GET /api/feed/trending?window=Day\|Week\|Month` | trending page |
+| `GET /api/feed/recommended` | home feed. With a token: personalised; without: trending (Week) |
+| `GET /api/feed/continue-watching?limit=20` | "Continue watching" row (items carry `positionSeconds` to resume at) |
+
+How it ranks (plain rules, no ML):
+- **Related** = candidates from (a) videos sharing the most distinctive title words, (b) the same channel, (c) **co-watching** (what people who watched this also watched, from watch history). Score = title similarity + same-channel bonus + co-watch count + popularity (views, likes) + a freshness bonus. Topped up with popular videos so it is never empty.
+- **Trending** = counted views + 5 x likes that happened inside the window (from `VideoViews` / `VideoReactions`), then filled with all-time popular videos on a quiet site.
+- **Home feed** = interest profile built from your likes (weight 3), finished videos (2) and watched-for-30 s videos (1), as favourite title words and channels; dislikes subtract. Candidates come from your top words and channels plus some fresh/popular videos for exploration. Excluded: videos you finished, liked, disliked or uploaded. Max 3 per channel at the top for variety. New users with no signals get trending.
+- Only **Public + Ready** videos are recommended. Ranked id lists are cached in memory for 5 minutes (10 for related), so paging is stable; visibility is re-checked when cards are loaded. Restarting the API clears the cache.
+- "Words" are the accent-free title tokens from the search step (stopwords and bare numbers ignored). The weights are constants at the top of `RecommendationService` and easy to tune.
+
 ### Try playback
 
 Run the API in Development and open `https://localhost:7100/player-test.html`, paste the video id (and a token for Private videos).
@@ -212,6 +228,10 @@ storage-private/    (never served)               videos/{id}/source/original.mp4
 | GET | /api/search/channels | – |
 | GET | /api/search/suggestions | – |
 | POST | /api/admin/search/reindex | Admin |
+| GET | /api/videos/{id}/related | – |
+| GET | /api/feed/trending | – |
+| GET | /api/feed/recommended | – (personalised with a token) |
+| GET | /api/feed/continue-watching | Bearer |
 | GET | /api/admin/users | Admin |
 | PUT | /api/admin/users/{id}/lock | Admin |
 | PUT | /api/admin/users/{id}/roles | Admin |

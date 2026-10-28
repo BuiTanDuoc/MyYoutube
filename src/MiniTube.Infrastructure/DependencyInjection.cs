@@ -7,6 +7,7 @@ using MiniTube.Application.Auth;
 using MiniTube.Application.Common;
 using MiniTube.Application.Playback;
 using MiniTube.Application.Playlists;
+using MiniTube.Application.Recommendations;
 using MiniTube.Application.Search;
 using MiniTube.Application.Users;
 using MiniTube.Application.Videos;
@@ -14,6 +15,7 @@ using MiniTube.Domain.Entities;
 using MiniTube.Infrastructure.Options;
 using MiniTube.Infrastructure.Persistence;
 using MiniTube.Infrastructure.Playlists;
+using MiniTube.Infrastructure.Recommendations;
 using MiniTube.Infrastructure.Search;
 using MiniTube.Infrastructure.Services;
 using MiniTube.Infrastructure.Storage;
@@ -93,6 +95,10 @@ public static class DependencyInjection
         services.AddScoped<IPlaylistService, PlaylistService>();
         services.AddScoped<ISearchService, SearchService>();
         services.AddScoped<ISearchIndexer, SearchIndexer>();
+
+        // Recommendations keep ranked id lists in memory for a few minutes
+        services.AddMemoryCache();
+        services.AddScoped<IRecommendationService, RecommendationService>();
         services.AddHostedService<SearchBackfillService>();
         services.AddHostedService<VideoProcessingWorker>();
 
