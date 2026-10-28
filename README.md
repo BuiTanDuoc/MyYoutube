@@ -1,4 +1,9 @@
-# MiniTube – Backend (Identity / User management)
+# MiniTube
+
+- `src/` - .NET 8 API (this file)
+- `frontend/` - React app, see `frontend/README.md` (`cd frontend && npm install && npm run dev`)
+
+# Backend
 
 .NET 8 · Clean Architecture · EF Core + SQL Server · ASP.NET Core Identity · JWT + rotating refresh tokens
 

@@ -1,0 +1,134 @@
+.shell { min-height: 100vh; }
+
+/* ---------- header ---------- */
+.header {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 50;
+  height: var(--header-h);
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  background: var(--bg);
+  transition: background-color 0.2s var(--ease);
+}
+.header__start { display: flex; align-items: center; gap: 8px; }
+.header__end { display: flex; align-items: center; gap: 4px; }
+
+.logo { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 20px; letter-spacing: -0.04em; }
+.logo svg { width: 30px; height: 22px; }
+
+.searchbox { position: relative; justify-self: center; width: 100%; max-width: 640px; }
+.searchbox__form { display: flex; }
+.searchbox__input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--border);
+  border-right: 0;
+  border-radius: 20px 0 0 20px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+}
+.searchbox__input:focus { outline: none; border-color: var(--primary); }
+.searchbox__submit {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 0 20px 20px 0;
+  background: var(--surface-2);
+}
+.searchbox__submit:hover { background: var(--surface-3); }
+.suggestions {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 46px;
+  z-index: 60;
+  padding: 8px 0;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+.suggestions li button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+.suggestions li.is-active button, .suggestions li button:hover { background: var(--surface-2); }
+.suggestions .muted { margin-left: auto; font-size: 12px; }
+
+/* ---------- sidebar ---------- */
+.sidebar {
+  position: fixed;
+  z-index: 45;
+  top: var(--header-h);
+  bottom: 0;
+  left: 0;
+  width: var(--sidebar-w);
+  padding: 12px;
+  overflow-y: auto;
+  background: var(--bg);
+  transition: transform 0.2s var(--ease), width 0.2s var(--ease);
+}
+.sidebar__link {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.sidebar__link:hover { background: var(--surface-2); }
+.sidebar__link.is-active { background: var(--surface-2); font-weight: 600; }
+.sidebar__sep { height: 1px; margin: 12px 0; background: var(--border); }
+.sidebar__title { padding: 6px 12px; font-weight: 600; }
+.backdrop { position: fixed; inset: 0; z-index: 44; background: var(--overlay); }
+
+.main { padding: calc(var(--header-h) + 16px) 24px 48px; transition: margin-left 0.2s var(--ease); }
+
+/* desktop: sidebar pushes the content */
+@media (min-width: 1024px) {
+  .shell:not(.is-overlay) .main { margin-left: var(--sidebar-w); }
+  .shell:not(.is-overlay).is-collapsed .main { margin-left: var(--sidebar-mini-w); }
+
+  .shell:not(.is-overlay).is-collapsed .sidebar { width: var(--sidebar-mini-w); }
+  .shell:not(.is-overlay).is-collapsed .sidebar__link {
+    flex-direction: column;
+    justify-content: center;
+    height: 66px;
+    gap: 4px;
+    padding: 0;
+    font-size: 10px;
+  }
+  .shell:not(.is-overlay).is-collapsed .sidebar__sep,
+  .shell:not(.is-overlay).is-collapsed .sidebar__title { display: none; }
+}
+
+/* overlay mode (watch page) and small screens: sidebar is a drawer */
+.shell.is-overlay .sidebar { transform: translateX(-100%); box-shadow: var(--shadow); }
+.shell.is-overlay .sidebar.is-open { transform: none; }
+@media (max-width: 1023px) {
+  .sidebar { transform: translateX(-100%); box-shadow: var(--shadow); }
+  .sidebar.is-open { transform: none; }
+  .main { padding-left: 16px; padding-right: 16px; }
+}
+@media (max-width: 640px) {
+  .header { gap: 8px; padding: 0 8px; }
+  .logo span { display: none; }
+  .searchbox__submit { width: 48px; }
+  .header__hide-sm { display: none; }
+}
